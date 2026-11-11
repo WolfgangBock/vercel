@@ -1,0 +1,118 @@
+# MMA Auth Starter
+
+Dein Projekt mit **HTML, CSS, JavaScript, PHP und einer Hostpoint-Datenbank**. Der [MMA-Login](https://auth.mmacodeclub.ch) ist eingebaut. Als Beispiel kannst du eigene Notizen speichern und löschen. Beni, das MMACodeClub-Maskottchen, begrüsst dich auf der Startseite.
+
+## 1. Eigenes Repository erstellen
+
+Klicke auf **[Use this template → Create a new repository](https://github.com/MMACodeClub/mma-auth-starter/generate)**. Lade dein neues Repository auf deinen Computer und öffne den Projektordner im Editor.
+
+Du brauchst eine Projektadresse mit HTTPS, einen SFTP-Zugang und eine Datenbank bei Hostpoint. Die Angaben erhältst du von deiner Lehrperson oder im Hostpoint Control Panel. Verwende für dein Projekt eine eigene Domain oder Subdomain.
+
+## 2. Datenbank bei Hostpoint vorbereiten
+
+1. Öffne im Hostpoint Control Panel **Datenbanken** und wähle deine Projektdatenbank bzw. lege eine neue an.
+2. Öffne dazu **phpMyAdmin**, wähle die Datenbank und importiere über **Importieren** die Datei `schema.sql`.
+3. Halte Datenbankhost, Datenbankname, Datenbankbenutzer und Passwort bereit. Verwende den Hostnamen aus dem Control Panel.
+
+Das Schema erstellt `users` für die Zuordnung zum MMA-Konto und `notes` für die Notizen.
+
+## 3. Konfiguration ausfüllen
+
+Kopiere `config.example.php` und nenne die Kopie **`config.php`**. Trage dort ein:
+
+| Einstellung | Dein Wert |
+| --- | --- |
+| `app_origin` | Deine HTTPS-Projektadresse, z.B. `https://mein-projekt.ch`, ohne Pfad und ohne `/` am Ende |
+| `db_host` | Datenbankhost aus Hostpoint |
+| `db_name` | Name deiner Projektdatenbank |
+| `db_user` | Zugewiesener Datenbankbenutzer |
+| `db_password` | Passwort dieses Datenbankbenutzers |
+
+`auth_url` bleibt unverändert. **`config.php` wird von Git ignoriert.** Lade sie separat per SFTP hoch; Zugangsdaten gehören ausschliesslich in diese Datei.
+
+## 4. Per SFTP hochladen
+
+1. Richte im Hostpoint Control Panel unter **Websites** die Projektadresse ein. Wähle PHP 8.1 oder neuer und aktiviere HTTPS.
+2. Setze das **Document-Root** (Startverzeichnis der Website) auf `www/dein-projekt/public`. Ersetze `dein-projekt` durch deinen tatsächlichen Projektordner.
+3. Verbinde dich mit deinem SFTP-Programm mit Hostpoint. Verwende die erhaltenen SFTP-Zugangsdaten und Port **22**. Der SSH-Zugang muss bei Hostpoint aktiviert sein.
+4. Lade die Ordner **`app/`**, **`public/`** und deine **`config.php`** nach `www/dein-projekt/` hoch. Übertrage auch die versteckte Datei `public/api/.htaccess`.
+
+Die Struktur auf Hostpoint sieht danach so aus:
+
+```text
+www/dein-projekt/
+├── app/
+│   ├── auth.php
+│   ├── db.php
+│   ├── http.php
+│   └── load-config.php
+├── config.php
+└── public/             ← Document-Root deiner Website
+    ├── index.html
+    ├── beni.png        ← Unser Maskottchen
+    ├── style.css
+    ├── script.js
+    └── api/
+        ├── .htaccess
+        └── notes.php
+```
+
+Nur `public/` ist über die Projektadresse erreichbar. `config.php` und `app/` bleiben ausserhalb. `schema.sql` brauchst du nur für den Import; README, Vorlage und Git-Dateien müssen nicht auf den Webserver.
+
+Hostpoint-Hilfe: [Document-Root](https://support.hostpoint.ch/de/produkte/webhosting/erste-schritte/wo-liegt-das-document-root-meiner-website) · [SFTP-Zugang](https://support.hostpoint.ch/de/produkte/webhosting/erste-schritte/wie-verbinde-ich-mich-via-ftp-sftp-auf-meinen-server)
+
+## 5. Login und Notizen ausprobieren
+
+1. Neu dabei? [Erstelle dein MMA-Konto](https://auth.mmacodeclub.ch/registrieren) mit dem Klassencode deiner Lehrperson und trage im Feld **Domain deines Projekts** deine Projektdomain ein. Bestätige den Code aus der E-Mail. Hast du schon ein Konto, ergänze die Domain unter [Mein Konto → Domains](https://auth.mmacodeclub.ch/konto#domains). Für Adressen auf `*.mmacodeclub.ch` musst du nichts eintragen.
+2. Öffne deine HTTPS-Projektadresse, melde dich an und erlaube deinem Projekt den Zugriff auf deine Kontodaten.
+3. Speichere eine Notiz, lade die Seite neu und lösche sie wieder.
+
+Jede Person sieht nur ihre eigenen neuesten 100 Notizen. Sie bleiben in deiner Hostpoint-Datenbank gespeichert, auch nach dem Abmelden.
+
+## Dein eigenes Projekt bauen
+
+- **`public/index.html`**: Inhalt und Aufbau deiner Seite.
+- **`public/style.css`**: Gestaltung.
+- **`public/script.js`**: Funktionen im Browser. `mmaAuth.fetch('api/notes.php')` sendet den Login an PHP.
+- **`public/api/notes.php`**: Notizen laden, speichern und löschen. Vorlage für deine eigenen API-Endpunkte.
+
+Für deine Projektidee ergänzt du eine Tabelle in `schema.sql` mit `user_id VARCHAR(32)` und einem Fremdschlüssel auf `users(id)`. Importiere die neue Tabelle auch in deine Hostpoint-Datenbank; eine Änderung an der Datei allein ändert die Datenbank nicht.
+
+Nimm `public/api/notes.php` als Vorlage für deinen Endpunkt:
+
+- `mma_require_user($config)` prüft den Login und ob das Token zu deinem Projekt gehört.
+- `mma_db($config, $user)` verbindet die Datenbank und übernimmt die geprüfte Person in `users`.
+- `read_json()` liest ein JSON-Objekt als Array, auch verschachtelte Objekte. Welche Felder erlaubt sind, prüfst du im Endpunkt.
+
+Ein kleiner Lese-Endpunkt für die bestehenden Notizen sieht so aus:
+
+```php
+<?php
+require_once __DIR__ . '/../../app/auth.php';
+require_once __DIR__ . '/../../app/db.php';
+$config = require __DIR__ . '/../../app/load-config.php';
+$user = mma_require_user($config);
+
+$pdo = mma_db($config, $user);
+$query = $pdo->prepare('SELECT id, text FROM notes WHERE user_id = ? ORDER BY id DESC LIMIT 100');
+$query->execute([$user['id']]);
+echo json_encode($query->fetchAll(), JSON_UNESCAPED_UNICODE);
+```
+
+Beim Lesen, Ändern und Löschen filterst du immer nach der geprüften `$user['id']`; beim Speichern setzt du sie als `user_id`. Verwende im Frontend `mmaAuth.fetch()` für deine API und `textContent` für Benutzereingaben.
+
+Die Helfer in `app/` sind für **JSON-APIs**, nicht für HTML-Seiten: `http.php` setzt beim Laden die JSON-Header. Fehler liefern eine JSON-Meldung (Verbindungsfehler: 503; Abfragefehler und sonstige Ausnahmen: 500). Bei unbehandelten Ausnahmen stehen Fehlertyp und Fundstelle im PHP-Fehlerlog auf dem Server. Dafür brauchst du kein eigenes `try/catch`.
+
+## Wenn etwas nicht klappt
+
+| Problem | Prüfen |
+| --- | --- |
+| Konfiguration fehlt | Liegt `config.php` neben `app/` und `public/` auf Hostpoint? |
+| Keine Verbindung zur Datenbank (503) | Stimmen die vier Datenbankangaben in `config.php`? |
+| Datenbankabfrage fehlgeschlagen (500) | Ist die Tabelle importiert? Stimmen Tabellen- und Spaltennamen in deiner SQL-Abfrage? |
+| Login nicht erlaubt / API liefert 403 | Domain freigeschaltet? Stimmt `app_origin` exakt mit deiner Projektadresse überein? |
+| API liefert 401 | Abmelden und erneut anmelden; API mit `mmaAuth.fetch` aufrufen. Ist `.htaccess` hochgeladen? |
+| «Das Backend liefert keine gültige Notizliste» | Läuft die Seite lokal, z.B. mit Live Server? PHP und Datenbank dieses Starters laufen bei Hostpoint. Teste auf deiner HTTPS-Projektadresse. |
+| Startseite fehlt | Zeigt das Document-Root auf den Ordner `public/`? |
+
+[MIT-Lizenz](LICENSE)
