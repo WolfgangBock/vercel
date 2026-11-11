@@ -1,0 +1,90 @@
+# ---------------------------------------------------------------------------
+# FTP-Deployment: lädt den Inhalt des Repositorys auf einen beliebigen
+# FTP-/FTPS-Server hoch.
+#
+# Einrichtung (Repository → Settings → Secrets and variables → Actions):
+#
+#   Secrets (Pflicht):
+#     FTP_SERVER     z. B. ftp.example.com   (ohne ftp://)
+#     FTP_USERNAME   FTP-Benutzername
+#     FTP_PASSWORD   FTP-Passwort
+#
+#   Variables (optional):
+#     FTP_PORT        Standard: 21
+#     FTP_PROTOCOL    ftp | ftps | ftps-legacy   (Standard: ftps)
+#     FTP_SERVER_DIR  Zielordner auf dem Server, muss mit / enden
+#                     (Standard: ./)
+#     FTP_LOCAL_DIR   Lokaler Ordner, der hochgeladen wird, muss mit / enden
+#                     (Standard: ./  = ganzes Repository)
+#
+# Tipp: Für mehrere Server lege in GitHub "Environments" an (z. B.
+# "staging", "production") mit jeweils eigenen Secrets/Variables und wähle
+# beim manuellen Start das gewünschte Environment aus.
+# ---------------------------------------------------------------------------
+ 
+name: 🚀 FTP Deploy
+ 
+on:
+  # Automatisch bei jedem Push auf main
+  push:
+    branches: [main]
+ 
+  # Manuell über den Tab "Actions" startbar
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "GitHub-Environment mit den Zugangsdaten (leer = Repository-Secrets)"
+        required: false
+        default: ""
+      server_dir:
+        description: "Zielordner auf dem Server (leer = Variable FTP_SERVER_DIR bzw. ./)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Nur anzeigen, was hochgeladen würde (nichts ändern)"
+        type: boolean
+        default: false
+ 
+# Verhindert, dass zwei Deployments gleichzeitig auf denselben Server schreiben
+concurrency:
+  group: ftp-deploy-${{ inputs.environment || 'default' }}
+  cancel-in-progress: false
+ 
+jobs:
+  deploy:
+    name: 📂 Dateien per FTP synchronisieren
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || '' }}
+ 
+    steps:
+      - name: 🚚 Code auschecken
+        uses: actions/checkout@v4
+ 
+      # Optional: Build-Schritt, falls du z. B. eine statische Seite erzeugst.
+      # Dann FTP_LOCAL_DIR auf den Build-Ordner setzen (z. B. ./dist/).
+      # - name: 🔨 Build
+      #   run: |
+      #     npm ci
+      #     npm run build
+ 
+      - name: 📤 Upload per FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ vars.FTP_PORT || 21 }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          local-dir: ${{ vars.FTP_LOCAL_DIR || './' }}
+          server-dir: ${{ inputs.server_dir || vars.FTP_SERVER_DIR || './' }}
+          dry-run: ${{ inputs.dry_run || false }}
+          # Lädt nur geänderte Dateien hoch (Status in .ftp-deploy-sync-state.json
+          # auf dem Server). Diese Dateien/Ordner werden nie hochgeladen:
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .github/**
+            README.md
+          log-level: standard
+ 
